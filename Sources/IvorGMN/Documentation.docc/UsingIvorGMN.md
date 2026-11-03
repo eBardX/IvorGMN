@@ -1,12 +1,12 @@
 # Using IvorGMN
 
-Take Guido Music Notation from text to a validated syntax tree, and back to
-GMN text.
+Take Guido Music Notation text from `Data` to a validated syntax tree, and back
+to `Data`.
 
 ## Overview
 
-IvorGMN exposes four processing types. Each is a `Sendable` value type with
-a no-argument initializer and a single primary method:
+IvorGMN exposes four processing types. Each is a `Sendable` value type with a
+no-argument initializer and a single primary method:
 
  Type              | Method                | Result
 :----              |:------                |:------
@@ -28,17 +28,11 @@ let (parsed, diagnostics) = try GMNParser().parse(data)
 let (normalized, changes) = GMNNormalizer().normalize(parsed)
 let (validated, issues)   = try GMNValidator().validate(normalized)
 
-issues.forEach { print($0.message) }
-
 guard issues.isEmpty
-else { return }
+else { /* handle issues */ return }
 
-let text = try GMNFormatter().format(validated)
+let output = try GMNFormatter().format(validated)
 ```
-
-Every ``GMNValidator/Issue`` is fatal. A score that carries one is not
-validated, and formatting requires a validated score; see
-[Validating](#Validating).
 
 Both `normalize(_:)` and `validate(_:)` are idempotent — calling them on a
 score that is already normalized or validated returns it unchanged — so it is
@@ -123,20 +117,26 @@ for change in changes {
 }
 ```
 
-Normalization is a pure **AST → AST spelling** transform — it never lowers a
-tag to an event or attachment. It performs two kinds of rewrite, drawn from
-the aliases and renames GMN readers accept in practice rather than from the
-published spec documents (which can lag):
+Normalization is a pure **AST → AST** transform — it never lowers a tag to an
+event or attachment. It performs three kinds of rewrite:
 
-- **Tag-name alias canonicalization** — collapsing a short or historical
-  spelling to its canonical long form (`"stacc"` → `"staccato"`, `"sl"` →
-  `"slur"`, `"decrescBegin"` → `"diminuendoBegin"`, and around thirty more,
-  including every `Begin`/`End` form GMN recognizes).
-- **Parameter renames** — `\volta`’s `m` parameter, renamed to `mark`.
+- **Spelling** — collapsing a tag-name alias to its canonical long form
+  (`"stacc"` → `"staccato"`, `"sl"` → `"slur"`, `"decrescBegin"` →
+  `"diminuendoBegin"`, and around thirty more, including every `Begin`/`End`
+  form GMN recognizes), and renaming a deprecated parameter (`\volta`’s `m` →
+  `mark`). Both are drawn from the aliases and renames GMN readers accept in
+  practice rather than from the published spec documents (which can lag). A
+  tag that promotes to a typed payload is already canonical straight out of the
+  parser, so these are reported only for a tag that did not promote.
+- **Variable expansion** — substituting a `$variable` reference in
+  tag-parameter position by the value its declaration carries.
+- **Repair** — dropping a parameter nothing can read, so that the tag can
+  promote to a typed payload; see [Repaired or reported](#Repaired-or-reported).
 
-Each ``GMNNormalizer/Change`` case (`canonicalizedTagName`, `renamedParameter`)
-carries the affected tag name, so you can present a precise change log rather
-than just a count.
+Each ``GMNNormalizer/Change`` case — `canonicalizedTagName`,
+`renamedParameter`, `expandedVariableReference`, and the five `dropped…`
+repairs — carries the affected tag name, so you can present a precise change
+log rather than just a count.
 
 `normalize(_:)` never fails. A defect no repair reaches — a required parameter
 still missing, a positional parameter past the end of the tag’s template, a
@@ -153,20 +153,20 @@ normalization and not at the parser; see
 ```swift
 let (validated, issues) = try GMNValidator().validate(normalized)
 
-issues.forEach { print($0.message) }
-
-guard issues.isEmpty
-else { return }
-
-// `validated.isValidated` is true; format it.
+if issues.isEmpty {
+    // `validated.isValidated` is now true.
+} else {
+    issues.forEach { print($0.message) }
+}
 ```
 
 - If the score has not been normalized, `validate(_:)` throws
   ``GMNValidator/Error/notNormalized``.
-- If **any** issue is found, the returned score is the **input unchanged**
-  (its `isValidated` flag stays `false`). Fix it and validate again.
-- Otherwise the returned score has `isValidated == true` — the prerequisite
-  for formatting and resolving — and its issues array is empty.
+- If any issues are found, the returned score is the **input unchanged** (its
+  `isValidated` flag stays `false`). Fix the issues — or run it through the
+  normalizer again after editing — and validate again.
+- Only when the issues array is empty does the returned score have
+  `isValidated == true` — the prerequisite for formatting.
 
 ### Repaired or reported
 
@@ -212,7 +212,7 @@ let data = try GMNFormatter().format(validated)
 ```
 
 If the score has not been validated, `format(_:)` throws
-`GMNFormatter.Error.notValidated`. Because the lossless AST records exactly
+``GMNFormatter/Error/notValidated``. Because the lossless AST records exactly
 what was written — omitted durations and octaves stay omitted, tag names keep
 their round-trip-significant shape — `parse → normalize → validate → format`
 reproduces the original text (modulo settled whitespace canonicalization).
@@ -236,7 +236,7 @@ A ``GMNDuration`` separates the *base* from the *dots*, so every written form
 is representable: `c1/4` (a fraction base, no dots), `c.` (no base, one dot),
 `c1/4.` (both). `c` (neither written) has no ``GMNDuration`` at all —
 ``GMNNote``’s (and ``GMNRest``’s, ``GMNTablature``’s) `duration` is `nil`,
-inherited at resolve time. Leaf values are wrapped in small validating types
+inherited from the preceding event in the voice. Leaf values are wrapped in small validating types
 — ``GMNTag/Name``, ``GMNTag/Ident``, ``GMNPitch/Name``, ``GMNPitch/Octave``,
 ``GMNDuration/DotCount`` — each exposing a failable initializer that returns
 `nil` for out-of-range input. All AST types are `Equatable` and `Sendable`.
@@ -351,9 +351,10 @@ string and a positional parameter array whose order you have to look up. This
 is what the typed model buys a caller who never parses any text.
 
 A directly-constructed score has `isNormalized == false` and `isValidated ==
-false`, so you must run it through the normalizer and validator before
-formatting or resolving. The validator’s schema checks apply to a hand-built
-tag exactly as they do to a parsed one: a payload restates its parameters by
+false` — exactly like one fresh out of the parser — so you must run it through
+the normalizer and validator before formatting. The validator’s schema checks
+apply to a hand-built tag exactly as they do to a parsed one: a payload
+restates its parameters by
 name, and those are bound against the same template a written tag is bound
 against.
 
@@ -423,8 +424,10 @@ Thrown errors conform to `EnhancedError` (from
  ``GMNValidator/Error``   | `GMNValidator.validate(_:)`
  ``GMNFormatter/Error``   | `GMNFormatter.format(_:)`
 
-`normalize(_:)` does not throw at all. Results are returned rather than thrown,
-and each also provides a `message`:
+`GMNNormalizer.normalize(_:)` never throws — normalization has no failure mode.
+
+Non-fatal results are returned rather than thrown, and each also provides a
+`message`:
 
  Type                      | Returned by
 :----                      |:-----------

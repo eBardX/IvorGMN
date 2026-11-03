@@ -181,7 +181,7 @@ public struct GMNOrnament {
     ///
     /// A `position` outside the closed vocabulary keeps the tag reserved
     /// rather than promoting to this payload; see
-    /// ``GMNTag/Placement/init(guidoValue:)``.
+    /// ``GMNTag/Placement``.
     public let position: GMNTag.Placement?
 
     /// Whether the ornament repeats (`repeat`), as written, or `nil` if it

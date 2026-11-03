@@ -12,19 +12,19 @@ The IvorGMN framework provides a [Guido Music Notation
 (GMN)](https://guidodoc.grame.fr) parser, normalizer, validator, and
 formatter written in Swift, with a strict-concurrency-ready, value-type API.
 
-IvorGMN works entirely at the level of *syntax*: a **syntactic** core turns
-GMN text into a typed, round-trippable abstract syntax tree (``GMNScore`` →
-``GMNVoice`` → ``GMNSymbol``) and back to text, without interpreting the
-music. Tags are typed too: ``GMNTag`` is an enum over 59 payload structs —
-``GMNClef`` knows it has a type and a line, ``GMNTempo`` knows it has a text
-and a metronome spec — with two untyped lanes for everything else:
-``GMNReservedTag`` for a name GMN reserves that the catalog models no payload
-for, and ``GMNCustomTag`` for a name GMN does not reserve at all.
+IvorGMN’s syntactic core turns GMN text into a typed, round-trippable abstract
+syntax tree (``GMNScore`` → ``GMNVoice`` → ``GMNSymbol``) and back to text,
+without interpreting the music. Tags are typed too: ``GMNTag`` is an enum over
+59 payload structs — ``GMNClef`` knows it has a type and a line, ``GMNTempo``
+knows it has a text and a metronome spec — with two untyped lanes that carry,
+losslessly, everything else: ``GMNReservedTag`` for a name GMN reserves that
+the catalog models no payload for, and ``GMNCustomTag`` for a name GMN does not
+reserve at all.
 
 ### The pipeline
 
-Everything flows through a small, explicit pipeline of four value types, each
-a `Sendable` value type with a no-argument initializer:
+Everything flows through a small, explicit pipeline of four value types, each a
+`Sendable` value type with a no-argument initializer:
 
  Stage     | Type              | Input → Output
 :-----     |:----              |:--------------
@@ -48,19 +48,17 @@ let (parsed, diagnostics) = try GMNParser().parse(data)
 let (normalized, changes) = GMNNormalizer().normalize(parsed)
 let (validated, issues)   = try GMNValidator().validate(normalized)
 
-issues.forEach { print($0.message) }
-
 guard issues.isEmpty
-else { return }
+else { issues.forEach { print($0.message) }; return }
 
-let output = try GMNFormatter().format(validated)     // back to GMN
+let output = try GMNFormatter().format(validated)  // back to GMN
 ```
 
 Unlike ABC notation, which groups many tunes into a tunebook, GMN describes a
 **single score with multiple voices** — there is no tunebook-equivalent type.
 
-See <doc:UsingIvorGMN> for a full guide to each stage, the models, and
-error handling.
+See <doc:UsingIvorGMN> for a full guide to each stage, the models, and error
+handling.
 
 ## Topics
 

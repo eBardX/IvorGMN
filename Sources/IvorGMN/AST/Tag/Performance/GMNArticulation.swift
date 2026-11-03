@@ -116,7 +116,7 @@ public struct GMNArticulation {
     ///
     /// A `position` outside the closed vocabulary keeps the tag reserved
     /// rather than promoting to this payload; see
-    /// ``GMNTag/Placement/init(guidoValue:)``.
+    /// ``GMNTag/Placement``.
     public let position: GMNTag.Placement?
 
     /// Which part of a spanning construct this tag is.

@@ -85,7 +85,7 @@ public struct GMNFingering {
     ///
     /// A `position` outside the closed vocabulary keeps the tag reserved
     /// rather than promoting to this payload; see
-    /// ``GMNTag/Placement/init(guidoValue:)``.
+    /// ``GMNTag/Placement``.
     public let position: GMNTag.Placement?
 
     // Left a `String` rather than a list, although `ARFingering::scanText`
