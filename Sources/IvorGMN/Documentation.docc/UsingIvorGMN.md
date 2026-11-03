@@ -232,14 +232,15 @@ GMNScore
 `.note`, `.chord`, `.rest`, `.tablature`, `.tag`, `.variable`. Tags are
 described in [The tag model](#The-tag-model) below.
 
-A ``GMNDuration`` separates the *base* from the *dots*, so every written form
-is representable: `c1/4` (a fraction base, no dots), `c.` (no base, one dot),
+A ``GMNDuration`` separates the *base* from the *dots*, so every written form is
+representable: `c1/4` (a fraction base, no dots), `c.` (no base, one dot),
 `c1/4.` (both). `c` (neither written) has no ``GMNDuration`` at all —
 ``GMNNote``’s (and ``GMNRest``’s, ``GMNTablature``’s) `duration` is `nil`,
-inherited from the preceding event in the voice. Leaf values are wrapped in small validating types
-— ``GMNTag/Name``, ``GMNTag/Ident``, ``GMNPitch/Name``, ``GMNPitch/Octave``,
-``GMNDuration/DotCount`` — each exposing a failable initializer that returns
-`nil` for out-of-range input. All AST types are `Equatable` and `Sendable`.
+inherited from the preceding event in the voice. Leaf values are wrapped in
+small validating types — ``GMNTag/Name``, ``GMNTag/Ident``, ``GMNPitch/Name``,
+``GMNPitch/Octave``, ``GMNDuration/DotCount`` — each exposing a failable
+initializer that returns `nil` for out-of-range input. All AST types are
+`Equatable` and `Sendable`.
 
 ``GMNScore`` equality compares `variables` and `voices` only; the
 `isNormalized` and `isValidated` flags are metadata and are excluded.
@@ -247,10 +248,11 @@ inherited from the preceding event in the voice. Leaf values are wrapped in smal
 ## The tag model
 
 ``GMNTag`` is an **enum over 59 typed payloads plus two untyped lanes**,
-``GMNReservedTag`` and ``GMNCustomTag``. A payload says what its tag *means*: ``GMNTempo`` has a `tempo` text and a
-``GMNTempo/Metronome``; ``GMNSlur`` has a ``GMNTag/Span``, a ``GMNTag/Curve``,
-and a ``GMNTag/ControlPoints``; ``GMNNoteHeads`` is one type with a `kind`
-covering all five `\heads…` spellings.
+``GMNReservedTag`` and ``GMNCustomTag``. A payload says what its tag *means*:
+``GMNTempo`` has a `tempo` text and a ``GMNTempo/Metronome``; ``GMNSlur`` has a
+``GMNTag/Span``, a ``GMNTag/Curve``, and a ``GMNTag/ControlPoints``;
+``GMNNoteHeads`` is one type with a `kind` covering all five `\heads…`
+spellings.
 
 ```swift
 switch tag {
